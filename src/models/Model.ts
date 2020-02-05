@@ -31,98 +31,265 @@ function uncapFirstLetter(str: string) {
  * @param model The actual model class
  * @param inputType The input types
  */
-function createResolver<T extends ClassType>(
-  modelName: string,
-  collectionName: string,
-  returnType: T,
-  model: any,
-  inputType: any
-) {
-  if (inputType) {
-    @Resolver(of => returnType)
+function createResolver<T extends ClassType>(options: {
+  modelName: string;
+  collectionName: string;
+  returnType: T;
+  model: any;
+  inputType: any;
+  editType: any;
+  findQueryName: string;
+  listQueryName: string;
+  addMutationName: string;
+  editMutationName: string;
+  deleteMutationName: string;
+  onAdd: (data: any) => any;
+  onEdit: (data: any) => any;
+  onDelete: (data: any) => any;
+  onInput: (data: any) => any;
+  customListQuery: boolean;
+}) {
+  if (options.customListQuery && options.inputType) {
+    @Resolver(of => options.returnType)
     class CrudResolver {
-      @Query(returns => returnType, {
+      @Query(returns => options.returnType, {
         nullable: true,
-        description: `Get a specific ${modelName} document from the ${collectionName} collection.`
+        description: `Get a specific ${options.modelName} document from the ${options.collectionName} collection.`
       })
-      async [`${uncapFirstLetter(modelName)}`](
+      async [options.findQueryName
+        ? options.findQueryName
+        : `${uncapFirstLetter(options.modelName)}`](
         @Arg("id") id: string
       ): Promise<T> {
-        return await model.find(id);
+        return await options.model.find(id);
       }
 
-      @Query(returns => [returnType], {
-        nullable: true,
-        description: `Get a list of ${modelName} documents from the ${collectionName} collection.`
-      })
-      async [`${uncapFirstLetter(collectionName)}`](): Promise<any[]> {
-        return (await model
-          .ref()
-          .limit(15)
-          .get()).docs.map((doc: any) => ({ ...doc.data(), id: doc.id }));
-      }
-
-      @Mutation(returns => returnType)
-      async [`add${modelName}`](
-        @Arg("data", () => inputType, {
-          description: `Add a new ${modelName} document to the ${collectionName} collection.`
+      @Mutation(returns => options.returnType)
+      async [options.addMutationName
+        ? options.addMutationName
+        : `add${options.modelName}`](
+        @Arg("data", () => options.inputType, {
+          description: `Add a new ${options.modelName} document to the ${options.collectionName} collection.`
         })
         data: any
       ) {
-        return await model.create(data);
+        const docData =
+          options.onAdd && typeof options.onAdd === "function"
+            ? options.onAdd(data)
+            : options.onInput && typeof options.onInput === "function"
+            ? options.onInput(data)
+            : data;
+        if (docData === false) {
+          return false;
+        }
+
+        return await options.model.create(docData);
       }
 
-      @Mutation(returns => returnType)
-      async [`delete${modelName}`](
+      @Mutation(returns => options.returnType)
+      async [options.deleteMutationName
+        ? options.deleteMutationName
+        : `delete${options.modelName}`](
         @Arg("id", () => String, {
-          description: `The ID of the ${modelName} document being deleted in the ${collectionName} collection`
+          description: `The ID of the ${options.modelName} document being deleted in the ${options.collectionName} collection`
         })
         id: string
       ) {
-        const modelBefore = await model.find(id);
-        await model.delete(id);
+        const modelBefore = await options.model.find(id);
+        if (options.onDelete && typeof options.onDelete === "function") {
+          const res = options.onDelete(modelBefore);
+          if (res === false) {
+            return false;
+          }
+        }
+        await options.model.delete(id);
 
         return modelBefore;
       }
 
-      @Mutation(returns => returnType)
-      async [`edit${modelName}`](
+      @Mutation(returns => options.returnType)
+      async [options.editMutationName
+        ? options.editMutationName
+        : `edit${options.modelName}`](
         @Arg("id", () => String, {
-          description: `The ID of the ${modelName} document in the ${collectionName} collection`
+          description: `The ID of the ${options.modelName} document in the ${options.collectionName} collection`
         })
         id: string,
-        @Arg("data", () => inputType, {
-          description: `Update a ${modelName} document in the ${collectionName} collection.`
-        })
+        @Arg(
+          "data",
+          () => (options.editType ? options.editType : options.inputType),
+          {
+            description: `Update a ${options.modelName} document in the ${options.collectionName} collection.`
+          }
+        )
         data: any
       ) {
-        return await model.update({ id, ...data });
+        const docData =
+          options.onEdit && typeof options.onEdit === "function"
+            ? options.onEdit(data)
+            : options.onInput && typeof options.onInput === "function"
+            ? options.onInput(data)
+            : data;
+        if (docData === false) {
+          return false;
+        }
+
+        return await options.model.update({ id, ...docData });
       }
     }
 
     return CrudResolver;
-  } else {
-    @Resolver(of => returnType)
-    class BaseResolver {
-      @Query(returns => returnType, {
+  } else if (options.inputType) {
+    @Resolver(of => options.returnType)
+    class CrudResolver {
+      @Query(returns => options.returnType, {
         nullable: true,
-        description: `Get a specific ${modelName} document from the ${collectionName} collection.`
+        description: `Get a specific ${options.modelName} document from the ${options.collectionName} collection.`
       })
-      async [`${uncapFirstLetter(modelName)}`](
+      async [options.findQueryName
+        ? options.findQueryName
+        : `${uncapFirstLetter(options.modelName)}`](
         @Arg("id") id: string
       ): Promise<T> {
-        return await model.find(id);
+        console.log(id);
+        const doc = await options.model.find(id);
+        console.log(doc);
+
+        return doc;
       }
 
-      @Query(returns => [returnType], {
+      @Query(returns => [options.returnType], {
         nullable: true,
-        description: `Get a list of ${modelName} documents from the ${collectionName} collection.`
+        description: `Get a list of ${options.modelName} documents from the ${options.collectionName} collection.`
       })
-      async [`${uncapFirstLetter(collectionName)}`](): Promise<any[]> {
-        return (await model
-          .ref()
-          .limit(15)
-          .get()).docs.map((doc: any) => ({ ...doc.data(), id: doc.id }));
+      async [options.listQueryName
+        ? options.listQueryName
+        : `${uncapFirstLetter(options.collectionName)}`](): Promise<any[]> {
+        return await options.model.limit(15).find();
+      }
+
+      @Mutation(returns => options.returnType)
+      async [options.addMutationName
+        ? options.addMutationName
+        : `add${options.modelName}`](
+        @Arg("data", () => options.inputType, {
+          description: `Add a new ${options.modelName} document to the ${options.collectionName} collection.`
+        })
+        data: any
+      ) {
+        const docData =
+          options.onAdd && typeof options.onAdd === "function"
+            ? options.onAdd(data)
+            : options.onInput && typeof options.onInput === "function"
+            ? options.onInput(data)
+            : data;
+        if (docData === false) {
+          return false;
+        }
+
+        return await options.model.create(docData);
+      }
+
+      @Mutation(returns => options.returnType)
+      async [options.deleteMutationName
+        ? options.deleteMutationName
+        : `delete${options.modelName}`](
+        @Arg("id", () => String, {
+          description: `The ID of the ${options.modelName} document being deleted in the ${options.collectionName} collection`
+        })
+        id: string
+      ) {
+        const modelBefore = await options.model.find(id);
+        if (options.onDelete && typeof options.onDelete === "function") {
+          const res = options.onDelete(modelBefore);
+          if (res === false) {
+            return false;
+          }
+        }
+        await options.model.delete(id);
+
+        return modelBefore;
+      }
+
+      @Mutation(returns => options.returnType)
+      async [options.editMutationName
+        ? options.editMutationName
+        : `edit${options.modelName}`](
+        @Arg("id", () => String, {
+          description: `The ID of the ${options.modelName} document in the ${options.collectionName} collection`
+        })
+        id: string,
+        @Arg(
+          "data",
+          () => (options.editType ? options.editType : options.inputType),
+          {
+            description: `Update a ${options.modelName} document in the ${options.collectionName} collection.`
+          }
+        )
+        data: any
+      ) {
+        const docData =
+          options.onEdit && typeof options.onEdit === "function"
+            ? options.onEdit(data)
+            : options.onInput && typeof options.onInput === "function"
+            ? options.onInput(data)
+            : data;
+        if (docData === false) {
+          return false;
+        }
+
+        return await options.model.update({ id, ...docData });
+      }
+    }
+
+    return CrudResolver;
+  } else if (!options.customListQuery) {
+    @Resolver(of => options.returnType)
+    class BaseResolver {
+      @Query(returns => options.returnType, {
+        nullable: true,
+        description: `Get a specific ${options.modelName} document from the ${options.collectionName} collection.`
+      })
+      async [options.findQueryName
+        ? options.findQueryName
+        : `${uncapFirstLetter(options.modelName)}`](
+        @Arg("id") id: string
+      ): Promise<T> {
+        console.log(id);
+
+        return await options.model.find(id);
+      }
+
+      @Query(returns => [options.returnType], {
+        nullable: true,
+        description: `Get a list of ${options.modelName} documents from the ${options.collectionName} collection.`
+      })
+      async [options.listQueryName
+        ? options.listQueryName
+        : `${uncapFirstLetter(options.collectionName)}`](): Promise<any[]> {
+        return (
+          await options.model
+            .ref()
+            .limit(15)
+            .get()
+        ).docs.map((doc: any) => ({ ...doc.data(), id: doc.id }));
+      }
+    }
+
+    return BaseResolver;
+  } else {
+    @Resolver(of => options.returnType)
+    class BaseResolver {
+      @Query(returns => options.returnType, {
+        nullable: true,
+        description: `Get a specific ${options.modelName} document from the ${options.collectionName} collection.`
+      })
+      async [options.findQueryName
+        ? options.findQueryName
+        : `${uncapFirstLetter(options.modelName)}`](
+        @Arg("id") id: string
+      ): Promise<T> {
+        return await options.model.find(id);
       }
     }
 
@@ -138,7 +305,18 @@ export default class {
     protected options: {
       docSchema: any;
       inputType?: any;
+      editType?: any;
       collectionName?: string;
+      findQueryName?: string;
+      listQueryName?: string;
+      addMutationName?: string;
+      editMutationName?: string;
+      deleteMutationName?: string;
+      onAdd?: (data: any) => any;
+      onEdit?: (data: any) => any;
+      onDelete?: (data: any) => any;
+      onInput?: (data: any) => any;
+      customListQuery?: boolean;
     }
   ) {
     if (options) {
@@ -147,13 +325,13 @@ export default class {
         : pluralize(options.docSchema.name);
     }
     if (options && options.docSchema) {
-      this.Resolver = createResolver(
-        capFirstLetter(options.docSchema.name),
-        this.collectionName,
-        options.docSchema,
-        this,
-        options.inputType
-      );
+      this.Resolver = createResolver({
+        ...options,
+        returnType: options.docSchema,
+        modelName: capFirstLetter(options.docSchema.name),
+        collectionName: this.collectionName,
+        model: this
+      } as any);
     }
   }
 
@@ -193,7 +371,6 @@ export default class {
    */
   async find(id: string) {
     const data = await this.repo().findById(id);
-    data.id = id;
 
     return data;
   }
