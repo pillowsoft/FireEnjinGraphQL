@@ -24,6 +24,12 @@ input JobInput {
   customer: String
 }
 
+# The default input to use for all list queries
+input ListQueryInput {
+  # The number of results to return
+  limit: Float
+}
+
 # The information for an event logged on the system
 type Log {
   id: ID!
@@ -98,25 +104,25 @@ type Query {
   migration(id: String!): Migration
 
   # Get a list of Migration documents from the Migrations collection.
-  migrations: [Migration!]
+  migrations(data: ListQueryInput): [Migration!]
 
   # Get a specific Log document from the Logs collection.
   log(id: String!): Log
 
   # Get a list of Log documents from the Logs collection.
-  logs: [Log!]
+  logs(data: ListQueryInput): [Log!]
 
   # Get a specific User document from the Users collection.
   user(id: String!): User
 
   # Get a list of User documents from the Users collection.
-  users: [User!]
+  users(data: UserListQueryInput): [User!]
 
   # Get a specific Job document from the Jobs collection.
   job(id: String!): Job
 
   # Get a list of Job documents from the Jobs collection.
-  jobs: [Job!]
+  jobs(data: ListQueryInput): [Job!]
 }
 
 # The id of the job and user being tied together.
@@ -129,11 +135,20 @@ input TieUserToJobInput {
 type User {
   id: ID!
   name: String!
-  email: String!
+
+  # The user's email address
+  email: String
   jobs: [Job!]!
 }
 
 # Editable user data
 input UserInput {
   name: String
+}
+
+# A custom set of params to use when doing list query
+input UserListQueryInput {
+  # The number of results to return
+  limit: Float
+  hasEmail: Boolean
 }

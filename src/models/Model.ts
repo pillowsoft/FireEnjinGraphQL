@@ -7,6 +7,7 @@ import {
 import { Arg, ClassType, Mutation, Query, Resolver } from "type-graphql";
 import { firestore } from "firebase-admin";
 import * as pluralize from "pluralize";
+import ListQueryInput from "../inputs/listQuery";
 
 /**
  * Add capitalization on the first letter of a string
@@ -38,18 +39,14 @@ function createResolver<T extends ClassType>(options: {
   model: any;
   inputType: any;
   editType: any;
+  listQueryInputType: any;
   findQueryName: string;
   listQueryName: string;
   addMutationName: string;
   editMutationName: string;
   deleteMutationName: string;
-  onAdd: (data: any) => any;
-  onEdit: (data: any) => any;
-  onDelete: (data: any) => any;
-  onInput: (data: any) => any;
-  customListQuery: boolean;
 }) {
-  if (options.customListQuery && options.inputType) {
+  if (options.inputType) {
     @Resolver(of => options.returnType)
     class CrudResolver {
       @Query(returns => options.returnType, {
@@ -61,7 +58,43 @@ function createResolver<T extends ClassType>(options: {
         : `${uncapFirstLetter(options.modelName)}`](
         @Arg("id") id: string
       ): Promise<T> {
-        return await options.model.find(id);
+        const doc =
+          options.model.onBeforeFind &&
+          typeof options.model.onBeforeFind === "function"
+            ? await options.model.onBeforeFind(id)
+            : await options.model.find(id);
+        return options.model.onAfterFind &&
+          typeof options.model.onAfterFind === "function"
+          ? await options.model.onAfterFind(doc)
+          : doc;
+      }
+
+      @Query(returns => [options.returnType], {
+        nullable: true,
+        description: `Get a list of ${options.modelName} documents from the ${options.collectionName} collection.`
+      })
+      async [options.listQueryName
+        ? options.listQueryName
+        : `${uncapFirstLetter(options.collectionName)}`](
+        @Arg(
+          "data",
+          () =>
+            options.listQueryInputType
+              ? options.listQueryInputType
+              : ListQueryInput,
+          { nullable: true }
+        )
+        data?: any
+      ): Promise<any[]> {
+        const docs =
+          options.model.onBeforeList &&
+          typeof options.model.onBeforeList === "function"
+            ? await options.model.onBeforeList(data)
+            : await options.model.limit(data.limit ? data.limit : 15).find();
+        return options.model.onAfterList &&
+          typeof options.model.onAfterList === "function"
+          ? await options.model.onAfterList(docs)
+          : docs;
       }
 
       @Mutation(returns => options.returnType)
@@ -74,16 +107,26 @@ function createResolver<T extends ClassType>(options: {
         data: any
       ) {
         const docData =
-          options.onAdd && typeof options.onAdd === "function"
-            ? options.onAdd(data)
-            : options.onInput && typeof options.onInput === "function"
-            ? options.onInput(data)
+          options.model.onBeforeAdd &&
+          typeof options.model.onBeforeAdd === "function"
+            ? await options.model.onBeforeAdd(data)
+            : options.model.onBeforeWrite &&
+              typeof options.model.onBeforeWrite === "function"
+            ? await options.model.onBeforeWrite(data)
             : data;
         if (docData === false) {
           return false;
         }
 
-        return await options.model.create(docData);
+        const newDoc = await options.model.create(docData);
+
+        return options.model.onAfterAdd &&
+          typeof options.model.onAfterAdd === "function"
+          ? await options.model.onAfterAdd(newDoc)
+          : options.model.onAfterWrite &&
+            typeof options.model.onAfterWrite === "function"
+          ? await options.model.onAfterWrite(newDoc)
+          : newDoc;
       }
 
       @Mutation(returns => options.returnType)
@@ -96,15 +139,24 @@ function createResolver<T extends ClassType>(options: {
         id: string
       ) {
         const modelBefore = await options.model.find(id);
-        if (options.onDelete && typeof options.onDelete === "function") {
-          const res = options.onDelete(modelBefore);
+        if (
+          options.model.onBeforeDelete &&
+          typeof options.model.onBeforeDelete === "function"
+        ) {
+          const res = await options.model.onBeforeDelete({
+            id,
+            ...modelBefore
+          });
           if (res === false) {
             return false;
           }
         }
         await options.model.delete(id);
 
-        return modelBefore;
+        return options.model.onAfterDelete &&
+          typeof options.model.onAfterDelete === "function"
+          ? await options.model.onAfterDelete({ id, ...modelBefore })
+          : { id, ...modelBefore };
       }
 
       @Mutation(returns => options.returnType)
@@ -125,152 +177,30 @@ function createResolver<T extends ClassType>(options: {
         data: any
       ) {
         const docData =
-          options.onEdit && typeof options.onEdit === "function"
-            ? options.onEdit(data)
-            : options.onInput && typeof options.onInput === "function"
-            ? options.onInput(data)
+          options.model.onBeforeEdit &&
+          typeof options.model.onBeforeEdit === "function"
+            ? await options.model.onBeforeEdit({ id, ...data })
+            : options.model.onBeforeWrite &&
+              typeof options.model.onBeforeWrite === "function"
+            ? await options.model.onBeforeWrite({ id, ...data })
             : data;
         if (docData === false) {
           return false;
         }
 
-        return await options.model.update({ id, ...docData });
+        const doc = await options.model.update({ id, ...docData });
+
+        return options.model.onAfterEdit &&
+          typeof options.model.onAfterEdit === "function"
+          ? await options.model.onAfterEdit(doc)
+          : options.model.onAfterWrite &&
+            typeof options.model.onAfterWrite === "function"
+          ? await options.model.onAfterWrite(doc)
+          : doc;
       }
     }
 
     return CrudResolver;
-  } else if (options.inputType) {
-    @Resolver(of => options.returnType)
-    class CrudResolver {
-      @Query(returns => options.returnType, {
-        nullable: true,
-        description: `Get a specific ${options.modelName} document from the ${options.collectionName} collection.`
-      })
-      async [options.findQueryName
-        ? options.findQueryName
-        : `${uncapFirstLetter(options.modelName)}`](
-        @Arg("id") id: string
-      ): Promise<T> {
-        return await options.model.find(id);
-      }
-
-      @Query(returns => [options.returnType], {
-        nullable: true,
-        description: `Get a list of ${options.modelName} documents from the ${options.collectionName} collection.`
-      })
-      async [options.listQueryName
-        ? options.listQueryName
-        : `${uncapFirstLetter(options.collectionName)}`](): Promise<any[]> {
-        return await options.model.limit(15).find();
-      }
-
-      @Mutation(returns => options.returnType)
-      async [options.addMutationName
-        ? options.addMutationName
-        : `add${options.modelName}`](
-        @Arg("data", () => options.inputType, {
-          description: `Add a new ${options.modelName} document to the ${options.collectionName} collection.`
-        })
-        data: any
-      ) {
-        const docData =
-          options.onAdd && typeof options.onAdd === "function"
-            ? options.onAdd(data)
-            : options.onInput && typeof options.onInput === "function"
-            ? options.onInput(data)
-            : data;
-        if (docData === false) {
-          return false;
-        }
-
-        return await options.model.create(docData);
-      }
-
-      @Mutation(returns => options.returnType)
-      async [options.deleteMutationName
-        ? options.deleteMutationName
-        : `delete${options.modelName}`](
-        @Arg("id", () => String, {
-          description: `The ID of the ${options.modelName} document being deleted in the ${options.collectionName} collection`
-        })
-        id: string
-      ) {
-        const modelBefore = await options.model.find(id);
-        if (options.onDelete && typeof options.onDelete === "function") {
-          const res = options.onDelete(modelBefore);
-          if (res === false) {
-            return false;
-          }
-        }
-        await options.model.delete(id);
-
-        return modelBefore;
-      }
-
-      @Mutation(returns => options.returnType)
-      async [options.editMutationName
-        ? options.editMutationName
-        : `edit${options.modelName}`](
-        @Arg("id", () => String, {
-          description: `The ID of the ${options.modelName} document in the ${options.collectionName} collection`
-        })
-        id: string,
-        @Arg(
-          "data",
-          () => (options.editType ? options.editType : options.inputType),
-          {
-            description: `Update a ${options.modelName} document in the ${options.collectionName} collection.`
-          }
-        )
-        data: any
-      ) {
-        const docData =
-          options.onEdit && typeof options.onEdit === "function"
-            ? options.onEdit(data)
-            : options.onInput && typeof options.onInput === "function"
-            ? options.onInput(data)
-            : data;
-        if (docData === false) {
-          return false;
-        }
-
-        return await options.model.update({ id, ...docData });
-      }
-    }
-
-    return CrudResolver;
-  } else if (!options.customListQuery) {
-    @Resolver(of => options.returnType)
-    class BaseResolver {
-      @Query(returns => options.returnType, {
-        nullable: true,
-        description: `Get a specific ${options.modelName} document from the ${options.collectionName} collection.`
-      })
-      async [options.findQueryName
-        ? options.findQueryName
-        : `${uncapFirstLetter(options.modelName)}`](
-        @Arg("id") id: string
-      ): Promise<T> {
-        return await options.model.find(id);
-      }
-
-      @Query(returns => [options.returnType], {
-        nullable: true,
-        description: `Get a list of ${options.modelName} documents from the ${options.collectionName} collection.`
-      })
-      async [options.listQueryName
-        ? options.listQueryName
-        : `${uncapFirstLetter(options.collectionName)}`](): Promise<any[]> {
-        return (
-          await options.model
-            .ref()
-            .limit(15)
-            .get()
-        ).docs.map((doc: any) => ({ ...doc.data(), id: doc.id }));
-      }
-    }
-
-    return BaseResolver;
   } else {
     @Resolver(of => options.returnType)
     class BaseResolver {
@@ -283,7 +213,43 @@ function createResolver<T extends ClassType>(options: {
         : `${uncapFirstLetter(options.modelName)}`](
         @Arg("id") id: string
       ): Promise<T> {
-        return await options.model.find(id);
+        const doc =
+          options.model.onBeforeFind &&
+          typeof options.model.onBeforeFind === "function"
+            ? await options.model.onBeforeFind(id)
+            : await options.model.find(id);
+        return options.model.onAfterFind &&
+          typeof options.model.onAfterFind === "function"
+          ? await options.model.onAfterFind(doc)
+          : doc;
+      }
+
+      @Query(returns => [options.returnType], {
+        nullable: true,
+        description: `Get a list of ${options.modelName} documents from the ${options.collectionName} collection.`
+      })
+      async [options.listQueryName
+        ? options.listQueryName
+        : `${uncapFirstLetter(options.collectionName)}`](
+        @Arg(
+          "data",
+          () =>
+            options.listQueryInputType
+              ? options.listQueryInputType
+              : ListQueryInput,
+          { nullable: true }
+        )
+        data?: any
+      ): Promise<any[]> {
+        const docs =
+          options.model.onBeforeList &&
+          typeof options.model.onBeforeList === "function"
+            ? await options.model.onBeforeList(data)
+            : await options.model.limit(data.limit ? data.limit : 15).find();
+        return options.model.onAfterList &&
+          typeof options.model.onAfterList === "function"
+          ? await options.model.onAfterList(docs)
+          : docs;
       }
     }
 
@@ -300,17 +266,13 @@ export default class {
       docSchema: any;
       inputType?: any;
       editType?: any;
+      listQueryInputType?: any;
       collectionName?: string;
       findQueryName?: string;
       listQueryName?: string;
       addMutationName?: string;
       editMutationName?: string;
       deleteMutationName?: string;
-      onAdd?: (data: any) => any;
-      onEdit?: (data: any) => any;
-      onDelete?: (data: any) => any;
-      onInput?: (data: any) => any;
-      customListQuery?: boolean;
     }
   ) {
     if (options) {

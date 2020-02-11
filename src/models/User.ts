@@ -12,6 +12,7 @@ import {
 
 import Model from "./Model";
 import { Job, JobModel } from "./Job";
+import ListQueryInput from "../inputs/listQuery";
 
 @Collection("users")
 @ObjectType({ description: "The information for a user" })
@@ -22,7 +23,10 @@ export class User {
   @Field(() => String)
   name?: string;
 
-  @Field(() => String)
+  @Field(() => String, {
+    nullable: true,
+    description: "The user's email address"
+  })
   email?: string;
 
   @Authorized()
@@ -36,19 +40,96 @@ export class UserInput implements Partial<User> {
   name?: string;
 }
 
+@InputType({
+  description: "A custom set of params to use when doing list query"
+})
+export class UserListQueryInput extends ListQueryInput {
+  @Field({ nullable: true })
+  hasEmail?: boolean;
+}
+
 export class UserModel extends Model {
   constructor() {
     super({
       docSchema: User,
-      inputType: UserInput
+      inputType: UserInput,
+      listQueryInputType: UserListQueryInput
     });
   }
 
+  async onBeforeAdd(data: UserInput) {
+    console.log("Before Add - ", data);
+
+    return data;
+  }
+
+  async onAfterAdd(data: UserInput) {
+    console.log("After Add - ", data);
+
+    return data;
+  }
+
+  async onBeforeEdit(data: UserInput) {
+    console.log("Before Edit - ", data);
+
+    return data;
+  }
+
+  async onAfterEdit(data: UserInput) {
+    console.log("After Edit - ", data);
+
+    return data;
+  }
+
+  async onBeforeDelete(data) {
+    console.log("Before Delete - ", data);
+
+    return data;
+  }
+
+  async onAfterDelete(data) {
+    console.log("After Delete - ", data);
+
+    return data;
+  }
+
+  async onBeforeFind(id: string) {
+    console.log("Before Find - ", id);
+
+    return this.find(id);
+  }
+
+  async onAfterFind(data: Job) {
+    console.log("After Find - ", data);
+
+    return data;
+  }
+
+  async onBeforeList(data: UserListQueryInput = {}) {
+    console.log("Before List - ", data);
+
+    let userListQuery: any = this.limit(data.limit ? data.limit : 15);
+
+    if (data.hasEmail) {
+      userListQuery = userListQuery.whereGreaterOrEqualThan("email", "");
+    }
+
+    return userListQuery.find();
+  }
+
+  async onAfterList(data: User[]) {
+    console.log("After List - ", data);
+
+    return data;
+  }
+
   async jobsForId(id: string): Promise<Job[]> {
-    return (await new JobModel()
-      .ref()
-      .where("user", "==", this.ref().doc(id))
-      .get()).docs.map(doc => ({ ...doc.data(), id: doc.id })) as any;
+    return (
+      await new JobModel()
+        .ref()
+        .where("user", "==", this.ref().doc(id))
+        .get()
+    ).docs.map(doc => ({ ...doc.data(), id: doc.id })) as any;
   }
 }
 
