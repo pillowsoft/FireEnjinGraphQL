@@ -11,6 +11,11 @@ jobs:
     steps:
       - name: Checkout Repo
         uses: actions/checkout@master
+      - name: Setup Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: 12
+      - run: echo -e "@madnesslabs:registry=https://npm.pkg.github.com/\n//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_PAT }}" > ~/.npmrc
       - name: Install Dependencies
         run: npm install
       - name: Deploy to Firebase
@@ -21,10 +26,11 @@ jobs:
     steps:
       - name: Checkout Repo
         uses: actions/checkout@master
+      - run: echo -e "@madnesslabs:registry=https://npm.pkg.github.com/\n//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_PAT }}" > ~/.npmrc
       - name: Install Dependencies
         run: npm install
       - name: Build
-        run: npm run build
+        run: npm run build:live
       - uses: actions-hub/gcloud@master
         env:
           PROJECT_ID: ${{secrets.GCLOUD_PROJECT_ID}}
