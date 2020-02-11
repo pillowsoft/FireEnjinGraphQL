@@ -2,6 +2,10 @@
   "folders": [
     {
       "path": "."
+    },
+    {
+      "name": "fireenjingraphql @ 16e5fac",
+      "uri": "gitlens://16e5fac/d:/apps/@madnesslabs/fireenjingraphql?{\"path\":\"/d:/apps/@madnesslabs/fireenjingraphql\",\"ref\":\"16e5fac377c16d4253218e38c80cd7e26e9be811\",\"repoPath\":\"d:/apps/@madnesslabs/fireenjingraphql\"}"
     }
   ],
   "settings": {

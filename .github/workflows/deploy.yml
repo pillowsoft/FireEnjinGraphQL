@@ -30,7 +30,7 @@ jobs:
       - name: Install Dependencies
         run: npm install --verbose --unsafe-perm
       - name: Build
-        run: npm run build:live
+        run: npm run build
       - uses: actions-hub/gcloud@master
         env:
           PROJECT_ID: ${{secrets.GCLOUD_PROJECT_ID}}

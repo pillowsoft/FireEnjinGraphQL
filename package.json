@@ -18,7 +18,7 @@
     "lint": "tslint --project tsconfig.json",
     "migrate": "npm run build && fireenjin migrate",
     "publish": "npm run release",
-    "release": "npm run lint && npm run build",
+    "release": "npm run lint && npm run build && npm run codegen",
     "semantic-release": "semantic-release",
     "seed": "npm run build && fireenjin seed",
     "seed:clone": "npm run build && fireenjin seed:clone",
