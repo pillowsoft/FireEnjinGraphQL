@@ -1,13 +1,13 @@
 import { Job, JobModel } from "../../models/Job";
 import { UserModel } from "../../models/User";
 
-import AddUserToJobInput from "../../inputs/addUserToJob";
+import TieUserToJobInput from "../../inputs/tieUserToJob";
 
 /**
  * This will tie a user to a job ticket
  */
-export default async function addUserToJobUnit(
-  data: AddUserToJobInput
+export default async function tieUserToJobUnit(
+  data: TieUserToJobInput
 ): Promise<Job> {
   const Jobs = new JobModel();
   const Users = new UserModel();

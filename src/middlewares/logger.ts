@@ -1,7 +1,6 @@
 import { MiddlewareFn } from "type-graphql";
-import admin from "firebase-admin";
 
-import { LogModel } from "../models/Log";
+import logEvent from "../units/logEvent/logEvent";
 
 export const logger: MiddlewareFn = async (
   { info, context }: { info: any; context: any },
@@ -12,18 +11,14 @@ export const logger: MiddlewareFn = async (
   if (["Query", "Mutation"].indexOf(info.parentType.name) >= 0) {
     const resolveTime = Date.now() - start;
     try {
-      const log = await new LogModel().create({
+      await logEvent({
         referrer: context.referrer,
         type: info.parentType.name,
         name: info.fieldName,
-        input: JSON.stringify(info.variableValues),
-        output: JSON.stringify(res),
-        resolveTime,
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
+        input: info.variableValues,
+        output: res,
+        resolveTime
       });
-      console.log(
-        `${log.id} - ${info.parentType.name}.${info.fieldName} [${resolveTime} ms]`
-      );
     } catch (err) {
       console.log("Error creating log...", err);
     }
