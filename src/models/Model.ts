@@ -151,11 +151,7 @@ function createResolver<T extends ClassType>(options: {
         : `${uncapFirstLetter(options.modelName)}`](
         @Arg("id") id: string
       ): Promise<T> {
-        console.log(id);
-        const doc = await options.model.find(id);
-        console.log(doc);
-
-        return doc;
+        return await options.model.find(id);
       }
 
       @Query(returns => [options.returnType], {
@@ -255,8 +251,6 @@ function createResolver<T extends ClassType>(options: {
         : `${uncapFirstLetter(options.modelName)}`](
         @Arg("id") id: string
       ): Promise<T> {
-        console.log(id);
-
         return await options.model.find(id);
       }
 
