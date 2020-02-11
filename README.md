@@ -15,6 +15,10 @@ This is a back-end development stack that uses Firebase and GraphQL with the mag
 
 Delete the dist folder and run TypeScript compiler to build project.
 
+## build:firebase
+
+Delete the dist folder, run TypeScript compiler, and generate Firebase Functions index with RESTful API.
+
 ## clean
 
 Delete the dist folder.
@@ -27,9 +31,17 @@ Generate typings and StencilJS components from models and queries.
 
 Copy files from env folder and overwrite specific files per environment.
 
-## deploy
+## deploy:graphql
 
-Deploy the project to Firebase (Google Cloud).
+Deploy your GraphQL instance to Google Cloud.
+
+## deploy:firebase
+
+Deploy your triggers (Cloud Functions) to Firebase.
+
+## lint
+
+Run linting on TypeScript files.
 
 ## migrate
 

@@ -7,8 +7,6 @@
   "scripts": {
     "build": "npm run clean && tsc && npm run codegen",
     "build:firebase": "npm run build && fireenjin triggers",
-    "build:firebase:triggers": "fireenjin triggers",
-    "build:live": "npm run env live && npm run build",
     "clean": "rimraf dist/",
     "codegen": "graphql-codegen --config codegen.yml && tsc dist/sdk.ts",
     "copy": "fireenjin copy",
