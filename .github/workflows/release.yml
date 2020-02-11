@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - master
+
 jobs:
   release:
     name: Release
@@ -14,6 +15,7 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: 12
+      - run: echo -e "@madnesslabs:registry=https://npm.pkg.github.com/\n//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_PAT }}" > ~/.npmrc
       - name: Install dependencies
         run: npm install --verbose --unsafe-perm
       - name: Release
@@ -21,3 +23,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npx semantic-release
+      - name: Release Github Package
+        run: npm publish
