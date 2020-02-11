@@ -6,7 +6,7 @@ function cleanObject(obj: any) {
   const newObj = {};
   for (const key of Object.keys(obj)) {
     newObj[key] =
-      typeof obj[key] === "object" && !!obj[key]._firestore
+      obj[key] && typeof obj[key] === "object" && !!obj[key]._firestore
         ? { id: obj[key].id, path: obj[key].path }
         : obj[key];
   }
