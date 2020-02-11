@@ -12,7 +12,7 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@master
       - name: Install Dependencies
-        run: npm install
+        run: npm install --verbose --unsafe-perm
       - name: Deploy to Firebase
         run: npm run deploy:firebase -- --token "${{ secrets.FIREBASE_TOKEN }}"
   deploy-graphql:
@@ -22,7 +22,7 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@master
       - name: Install Dependencies
-        run: npm install
+        run: npm install --verbose --unsafe-perm
       - name: Build
         run: npm run build
       - uses: actions-hub/gcloud@master
