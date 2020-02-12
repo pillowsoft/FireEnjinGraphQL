@@ -46,6 +46,7 @@ function createResolver<T extends ClassType>(options: {
   editMutationName: string;
   deleteMutationName: string;
 }) {
+  const hookOptions = { type: "graphql" };
   if (options.inputType) {
     @Resolver(of => options.returnType)
     class CrudResolver {
@@ -61,11 +62,11 @@ function createResolver<T extends ClassType>(options: {
         const doc =
           options.model.onBeforeFind &&
           typeof options.model.onBeforeFind === "function"
-            ? await options.model.onBeforeFind(id)
+            ? await options.model.onBeforeFind(id, hookOptions)
             : await options.model.find(id);
         return options.model.onAfterFind &&
           typeof options.model.onAfterFind === "function"
-          ? await options.model.onAfterFind(doc)
+          ? await options.model.onAfterFind(doc, hookOptions)
           : doc;
       }
 
@@ -89,11 +90,11 @@ function createResolver<T extends ClassType>(options: {
         const docs =
           options.model.onBeforeList &&
           typeof options.model.onBeforeList === "function"
-            ? await options.model.onBeforeList(data)
+            ? await options.model.onBeforeList(data, hookOptions)
             : await options.model.limit(data.limit ? data.limit : 15).find();
         return options.model.onAfterList &&
           typeof options.model.onAfterList === "function"
-          ? await options.model.onAfterList(docs)
+          ? await options.model.onAfterList(docs, hookOptions)
           : docs;
       }
 
@@ -109,10 +110,10 @@ function createResolver<T extends ClassType>(options: {
         const docData =
           options.model.onBeforeAdd &&
           typeof options.model.onBeforeAdd === "function"
-            ? await options.model.onBeforeAdd(data)
+            ? await options.model.onBeforeAdd(data, hookOptions)
             : options.model.onBeforeWrite &&
               typeof options.model.onBeforeWrite === "function"
-            ? await options.model.onBeforeWrite(data)
+            ? await options.model.onBeforeWrite(data, hookOptions)
             : data;
         if (docData === false) {
           return false;
@@ -122,41 +123,11 @@ function createResolver<T extends ClassType>(options: {
 
         return options.model.onAfterAdd &&
           typeof options.model.onAfterAdd === "function"
-          ? await options.model.onAfterAdd(newDoc)
+          ? await options.model.onAfterAdd(newDoc, hookOptions)
           : options.model.onAfterWrite &&
             typeof options.model.onAfterWrite === "function"
-          ? await options.model.onAfterWrite(newDoc)
+          ? await options.model.onAfterWrite(newDoc, hookOptions)
           : newDoc;
-      }
-
-      @Mutation(returns => options.returnType)
-      async [options.deleteMutationName
-        ? options.deleteMutationName
-        : `delete${options.modelName}`](
-        @Arg("id", () => String, {
-          description: `The ID of the ${options.modelName} document being deleted in the ${options.collectionName} collection`
-        })
-        id: string
-      ) {
-        const modelBefore = await options.model.find(id);
-        if (
-          options.model.onBeforeDelete &&
-          typeof options.model.onBeforeDelete === "function"
-        ) {
-          const res = await options.model.onBeforeDelete({
-            id,
-            ...modelBefore
-          });
-          if (res === false) {
-            return false;
-          }
-        }
-        await options.model.delete(id);
-
-        return options.model.onAfterDelete &&
-          typeof options.model.onAfterDelete === "function"
-          ? await options.model.onAfterDelete({ id, ...modelBefore })
-          : { id, ...modelBefore };
       }
 
       @Mutation(returns => options.returnType)
@@ -179,10 +150,10 @@ function createResolver<T extends ClassType>(options: {
         const docData =
           options.model.onBeforeEdit &&
           typeof options.model.onBeforeEdit === "function"
-            ? await options.model.onBeforeEdit({ id, ...data })
+            ? await options.model.onBeforeEdit({ id, ...data }, hookOptions)
             : options.model.onBeforeWrite &&
               typeof options.model.onBeforeWrite === "function"
-            ? await options.model.onBeforeWrite({ id, ...data })
+            ? await options.model.onBeforeWrite({ id, ...data }, hookOptions)
             : data;
         if (docData === false) {
           return false;
@@ -192,11 +163,47 @@ function createResolver<T extends ClassType>(options: {
 
         return options.model.onAfterEdit &&
           typeof options.model.onAfterEdit === "function"
-          ? await options.model.onAfterEdit(doc)
+          ? await options.model.onAfterEdit(doc, hookOptions)
           : options.model.onAfterWrite &&
             typeof options.model.onAfterWrite === "function"
-          ? await options.model.onAfterWrite(doc)
+          ? await options.model.onAfterWrite(doc, hookOptions)
           : doc;
+      }
+
+      @Mutation(returns => options.returnType)
+      async [options.deleteMutationName
+        ? options.deleteMutationName
+        : `delete${options.modelName}`](
+        @Arg("id", () => String, {
+          description: `The ID of the ${options.modelName} document being deleted in the ${options.collectionName} collection`
+        })
+        id: string
+      ) {
+        const modelBefore = await options.model.find(id);
+        if (
+          options.model.onBeforeDelete &&
+          typeof options.model.onBeforeDelete === "function"
+        ) {
+          const res = await options.model.onBeforeDelete(
+            {
+              id,
+              ...modelBefore
+            },
+            hookOptions
+          );
+          if (res === false) {
+            return false;
+          }
+        }
+        await options.model.delete(id);
+
+        return options.model.onAfterDelete &&
+          typeof options.model.onAfterDelete === "function"
+          ? await options.model.onAfterDelete(
+              { id, ...modelBefore },
+              hookOptions
+            )
+          : { id, ...modelBefore };
       }
     }
 
@@ -216,11 +223,11 @@ function createResolver<T extends ClassType>(options: {
         const doc =
           options.model.onBeforeFind &&
           typeof options.model.onBeforeFind === "function"
-            ? await options.model.onBeforeFind(id)
+            ? await options.model.onBeforeFind(id, hookOptions)
             : await options.model.find(id);
         return options.model.onAfterFind &&
           typeof options.model.onAfterFind === "function"
-          ? await options.model.onAfterFind(doc)
+          ? await options.model.onAfterFind(doc, hookOptions)
           : doc;
       }
 
@@ -244,11 +251,11 @@ function createResolver<T extends ClassType>(options: {
         const docs =
           options.model.onBeforeList &&
           typeof options.model.onBeforeList === "function"
-            ? await options.model.onBeforeList(data)
+            ? await options.model.onBeforeList(data, hookOptions)
             : await options.model.limit(data.limit ? data.limit : 15).find();
         return options.model.onAfterList &&
           typeof options.model.onAfterList === "function"
-          ? await options.model.onAfterList(docs)
+          ? await options.model.onAfterList(docs, hookOptions)
           : docs;
       }
     }
